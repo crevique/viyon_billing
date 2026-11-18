@@ -34,10 +34,10 @@ class Settings(BaseSettings):
     DATABASE_URL: str
 
     # Security & Authentication
-    SECRET_KEY: str = "viyon-billing-secret-key-change-in-production-at-least-32-chars"
+    SECRET_KEY: str 
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480  # 8 hours for retail shift
-    OWNER_SETUP_TOKEN: str = "viyon-owner-setup-token-secure-init-2026"
+    OWNER_SETUP_TOKEN: str 
     RATE_LIMIT_LOGIN_ATTEMPTS: int = 5
     RATE_LIMIT_LOGIN_WINDOW_SECONDS: int = 60
 
