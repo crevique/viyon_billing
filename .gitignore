@@ -1,0 +1,80 @@
+# Environment variables (NEVER commit secrets to git)
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE & Editor caches
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# VIYON database backups and sensitive data
+backups/
+backup_*.sql
+backup_*.json
+*.dump
+*.bak
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Frontend dependencies and builds
+node_modules/
+**/node_modules/
+**/dist/
+**/build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# TypeScript build cache
+*.tsbuildinfo
+
+# Local administrative and database maintenance scripts
+/reset_owner_password.py
+/scripts/setup_new_owner.py
+/scripts/cleanup_test_data.py
+/scripts/create_db_backup.py
+
+# Keep local database and owner utility scripts private
+/scripts/
+/test_db.py

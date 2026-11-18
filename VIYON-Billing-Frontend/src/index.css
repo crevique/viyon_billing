@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-zinc-50 text-zinc-900 font-sans;
+  }
+}
+
+/* Print Styles: strictly format thermal receipt during window.print() */
+@page {
+  size: 58mm auto;
+  margin: 0mm;
+}
+
+@media print {
+  /* Hide all regular UI chrome, modals, headers, sidebars */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Reset document for thermal printer */
+  html, body {
+    width: 58mm !important;
+    min-width: 58mm !important;
+    max-width: 58mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Make printable thermal receipt and all its descendants visible and dark black */
+  #printable-thermal-receipt,
+  #printable-thermal-receipt * {
+    visibility: visible !important;
+    color: #000000 !important;
+    border-color: #000000 !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Print container: centered on 58mm roll with 48mm printable area */
+  #printable-thermal-receipt {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: 0 !important;
+    margin: 0 auto !important;
+    width: 48mm !important;
+    max-width: 48mm !important;
+    padding: 2mm 0 6mm 0 !important;
+    box-sizing: border-box !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    font-family: Arial, Helvetica, 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+    color: #000000 !important;
+    text-rendering: optimizeLegibility !important;
+    -webkit-font-smoothing: antialiased !important;
+  }
+
+  /* Force solid black on all text elements and remove light colors */
+  #printable-thermal-receipt p,
+  #printable-thermal-receipt span,
+  #printable-thermal-receipt div,
+  #printable-thermal-receipt td,
+  #printable-thermal-receipt th,
+  #printable-thermal-receipt h1,
+  #printable-thermal-receipt h2,
+  #printable-thermal-receipt h3 {
+    color: #000000 !important;
+  }
+
+  /* Heavy font weight for thermal head pins to burn dark, sharp text */
+  #printable-thermal-receipt .font-bold,
+  #printable-thermal-receipt b,
+  #printable-thermal-receipt strong {
+    font-weight: 800 !important;
+  }
+
+  #printable-thermal-receipt .font-semibold {
+    font-weight: 700 !important;
+  }
+
+  #printable-thermal-receipt .font-black {
+    font-weight: 900 !important;
+  }
+
+  /* Sharp dividers */
+  #printable-thermal-receipt .border-dashed {
+    border-style: dashed !important;
+    border-color: #000000 !important;
+  }
+
+  #printable-thermal-receipt .border-black {
+    border-color: #000000 !important;
+  }
+}
