@@ -1,7 +1,53 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, Lock, User, Store, AlertCircle } from 'lucide-react';
-import { useAuthStore } from '../../stores/useAuthStore';
+import { useAuthStore, AUTH_STORAGE_KEYS } from '../../stores/useAuthStore';
+import { UserRole } from '../../types';
+import { isTokenExpired } from '../../utils/token';
+
+function isOwnerOnlyPath(pathname: string): boolean {
+  if (pathname === '/') return true;
+  if (pathname === '/purchases' || pathname.startsWith('/purchases/payments')) return true;
+  return (
+    pathname.startsWith('/settings') ||
+    pathname.startsWith('/finance') ||
+    pathname.startsWith('/expenses') ||
+    pathname.startsWith('/suppliers') ||
+    pathname.startsWith('/staff-management') ||
+    pathname.startsWith('/audit-history')
+  );
+}
+
+function resolveReturnDestination(
+  rawCandidate: string | null | undefined,
+  userRole: UserRole
+): string {
+  const isOwner = userRole === 'OWNER' || userRole === 'ADMIN';
+
+  if (!rawCandidate || typeof rawCandidate !== 'string') {
+    return isOwner ? '/' : '/pos';
+  }
+
+  try {
+    const decoded = decodeURIComponent(rawCandidate);
+    // Security check: Must be a relative path and not a protocol or open redirect
+    if (!decoded.startsWith('/') || decoded.startsWith('//') || decoded.startsWith('/login')) {
+      return isOwner ? '/' : '/pos';
+    }
+
+    // Role-based route validation
+    if (!isOwner) {
+      const pathOnly = decoded.split('?')[0].split('#')[0];
+      if (isOwnerOnlyPath(pathOnly)) {
+        return '/pos';
+      }
+    }
+
+    return decoded;
+  } catch {
+    return isOwner ? '/' : '/pos';
+  }
+}
 
 export const LoginPage: React.FC = () => {
   const [identifier, setIdentifier] = useState('');
@@ -9,29 +55,62 @@ export const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  const { login, isLoading, error, isAuthenticated, role, clearError } = useAuthStore();
+  const {
+    login,
+    isLoading,
+    error,
+    isAuthenticated,
+    token,
+    role,
+    sessionExpiredNotice,
+    clearError,
+    clearSessionExpiredNotice,
+  } = useAuthStore();
+
   const navigate = useNavigate();
   const location = useLocation();
 
-  // If already authenticated, redirect immediately based on role
-  useEffect(() => {
-    if (isAuthenticated) {
-      if (role === 'OWNER' || role === 'ADMIN') {
-        navigate('/', { replace: true });
-      } else {
-        navigate('/pos', { replace: true });
-      }
-    }
-  }, [isAuthenticated, role, navigate]);
+  // Determine potential return URL from query params, router state, or session storage
+  const returnUrlParam = useMemo(() => {
+    const queryParams = new URLSearchParams(location.search);
+    const paramUrl = queryParams.get('returnUrl');
+    const stateUrl = (location.state as any)?.from?.pathname
+      ? (location.state as any).from.pathname + ((location.state as any).from.search || '')
+      : null;
+    const storedUrl = sessionStorage.getItem(AUTH_STORAGE_KEYS.RETURN_URL);
 
-  // Check if session expired from redirect param
+    return paramUrl || stateUrl || storedUrl || null;
+  }, [location]);
+
+  // Check if session expired from redirect param or store
   const queryParams = new URLSearchParams(location.search);
-  const isSessionExpired = queryParams.get('session_expired') === 'true';
+  const isSessionExpired =
+    queryParams.get('session_expired') === 'true' || !!sessionExpiredNotice;
+
+  // If already authenticated with a valid token, redirect immediately
+  useEffect(() => {
+    if (isAuthenticated && !isTokenExpired(token) && role) {
+      const destination = resolveReturnDestination(returnUrlParam, role);
+      try {
+        sessionStorage.removeItem(AUTH_STORAGE_KEYS.RETURN_URL);
+      } catch {
+        // Ignore storage error
+      }
+      navigate(destination, { replace: true });
+    }
+  }, [isAuthenticated, token, role, returnUrlParam, navigate]);
+
+  const handleInputChange = () => {
+    if (validationError) setValidationError(null);
+    if (error) clearError();
+    if (sessionExpiredNotice) clearSessionExpiredNotice();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError(null);
     clearError();
+    clearSessionExpiredNotice();
 
     if (!identifier.trim()) {
       setValidationError('Please enter your email or staff username.');
@@ -49,13 +128,13 @@ export const LoginPage: React.FC = () => {
         password,
       });
 
-      if (user.role === 'OWNER' || user.role === 'ADMIN') {
-        navigate('/', { replace: true });
-      } else if (user.role === 'STAFF') {
-        navigate('/pos', { replace: true });
-      } else {
-        setValidationError('Access restricted: Only authorized Store Owner and Staff may enter.');
+      const destination = resolveReturnDestination(returnUrlParam, user.role);
+      try {
+        sessionStorage.removeItem(AUTH_STORAGE_KEYS.RETURN_URL);
+      } catch {
+        // Ignore storage error
       }
+      navigate(destination, { replace: true });
     } catch {
       // Handled by store
     }
@@ -87,7 +166,9 @@ export const LoginPage: React.FC = () => {
         {isSessionExpired && (
           <div className="mt-4 flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
             <AlertCircle className="h-4 w-4 shrink-0 text-amber-400" />
-            <span>Your session has expired. Please log in again to continue.</span>
+            <span>
+              {sessionExpiredNotice || 'Your session has expired. Please sign in again to continue.'}
+            </span>
           </div>
         )}
 
@@ -112,7 +193,10 @@ export const LoginPage: React.FC = () => {
                 autoComplete="username"
                 placeholder="e.g. owner@viyon.store or staff_cashier"
                 value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
+                onChange={(e) => {
+                  setIdentifier(e.target.value);
+                  handleInputChange();
+                }}
                 disabled={isLoading}
                 className="w-full rounded-xl border border-zinc-700/80 bg-zinc-800/80 pl-10 pr-4 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:border-amber-400 focus:bg-zinc-800 focus:outline-none focus:ring-1 focus:ring-amber-400 disabled:opacity-50"
               />
@@ -130,7 +214,10 @@ export const LoginPage: React.FC = () => {
                 autoComplete="current-password"
                 placeholder="Enter password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  handleInputChange();
+                }}
                 disabled={isLoading}
                 className="w-full rounded-xl border border-zinc-700/80 bg-zinc-800/80 pl-10 pr-10 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:border-amber-400 focus:bg-zinc-800 focus:outline-none focus:ring-1 focus:ring-amber-400 disabled:opacity-50"
               />
