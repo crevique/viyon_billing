@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_staff_or_owner, require_owner
@@ -245,6 +245,37 @@ def get_bill_receipt_preview(
     """Retrieve formatted receipt preview and HTML for frontend display."""
     try:
         return ReceiptService.get_receipt_preview(db, bill_id=bill_id, is_reprint=is_reprint)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+
+
+@router.get(
+    "/{bill_id}/receipt/pdf",
+    summary="Download 58mm Thermal Receipt PDF (Staff & Owner)",
+    description=(
+        "Generate a single-page continuous 58mm thermal receipt PDF with dynamic height, "
+        "crisp thermal typography, and selectable text for mobile and Bluetooth printer workflows."
+    ),
+)
+def get_bill_receipt_pdf(
+    bill_id: UUID,
+    is_reprint: bool = Query(default=False, description="Flag indicating duplicate/reprint copy"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_staff_or_owner),
+) -> Response:
+    """Download continuous single-page 58mm thermal receipt PDF."""
+    try:
+        receipt = ReceiptService.get_receipt_data(db, bill_id=bill_id, is_reprint=is_reprint)
+        pdf_bytes = ReceiptService.generate_receipt_pdf(receipt)
+        filename = f"VIYON-Receipt-{receipt.bill_number}.pdf"
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"inline; filename={filename}"},
+        )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

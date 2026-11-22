@@ -109,4 +109,20 @@ export const billingService = {
     const response = await apiClient.post(`/bills/${billId}/receipt/print-audit`, { is_reprint });
     return response.data;
   },
+
+  downloadReceiptPdf: async (billId: string, billNumber: string, is_reprint: boolean = false): Promise<void> => {
+    const response = await apiClient.get(`/bills/${billId}/receipt/pdf`, {
+      params: { is_reprint },
+      responseType: 'blob',
+    });
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `VIYON-Receipt-${billNumber}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
 };
